@@ -1,0 +1,12 @@
+{
+  "_hinweis": "Eintrag fuer das App-Register (Rosenweg/Website apps-register.json, Abschnitt 'apps', Schluessel = 'app'). Erst damit nimmt die Anlage Releases dieses Repos an. Logo: assets/logo/rosenweg-termine-192.png nach www img/apps/rosenweg-termine.png.",
+  "app": "termine",
+  "name": "Rosenweg Termine",
+  "repo": "Rosenweg/rosenweg-termine",
+  "paket": "ch.rosenweg4303.termine",
+  "logo": "/img/apps/rosenweg-termine.png",
+  "reihenfolge": 100,
+  "text": "Termine und Versammlungen deiner STWEG: ansehen, in den Kalender übernehmen, erinnern lassen.",
+  "fuer": "",
+  "technik": false
+}

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Startet Rosenweg Termine aus /opt/rosenweg-termine (Flutter-Buendel sucht data/
+# und lib/ neben der echten Programmdatei; wie rosenweg-profil, rosenweg-vm).
+exec /opt/rosenweg-termine/rosenweg_termine "$@"
