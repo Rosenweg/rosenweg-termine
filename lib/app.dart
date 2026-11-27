@@ -17,6 +17,11 @@ const appAngaben = RosenwegApp(
   // Farbe des Anmeldeschirms wie der Logo-Grund (assets/logo/erzeugen.sh GRUPPE);
   // neue-app.sh setzt sie aus werkzeug/logo/flutter-apps.txt
   gruppe: RosenwegGruppe.bewohner,
+  // Farbe nach dem, was die App freischaltet (rosenweg_basis docs/gruppenfarbe.md):
+  // rot alle, blau wer Termine schreiben darf (Recht stweg-termine: Ausschuss und
+  // Verwaltung ihrer STWEG), gruen Technik und Praesident
+  farbGruppen: {RosenwegGruppe.verwaltung, RosenwegGruppe.technik},
+  farbRechte: {'stweg-termine'},
 );
 
 /// --dart-define=RW_ATTRAPPE=1: ohne Anmeldung und ohne Server, mit

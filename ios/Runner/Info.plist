@@ -2,6 +2,15 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Abfrage im Hintergrund (rosenweg_basis HintergrundAbfrage, AppDelegate) -->
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>ch.rosenweg4303.termine.abfrage</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Die Kamera liest QR-Codes und nimmt Fotos auf.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

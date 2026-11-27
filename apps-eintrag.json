@@ -4,9 +4,9 @@
   "name": "Rosenweg Termine",
   "repo": "Rosenweg/rosenweg-termine",
   "paket": "ch.rosenweg4303.termine",
-  "logo": "/img/apps/rosenweg-termine.png",
-  "reihenfolge": 100,
-  "text": "Termine und Versammlungen deiner STWEG: ansehen, in den Kalender übernehmen, erinnern lassen.",
-  "fuer": "",
+  "logo": "/img/apps/rosenweg-termine.png?v=20261128",
+  "reihenfolge": 80,
+  "text": "Versammlungen, Sitzungen, Wartungen und weitere Termine deiner STWEG an einem Ort: in den eigenen Kalender übernehmen und rechtzeitig erinnern lassen.",
+  "fuer": "Für alle Bewohner und Eigentümer (Termine ihrer STWEG). Eintragen und ändern: Ausschuss und Verwaltung für ihre STWEG, Technik und Präsident.",
   "technik": false
 }

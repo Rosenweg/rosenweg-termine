@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rosenweg_basis/rosenweg_basis.dart';
 import 'package:rosenweg_termine/app.dart';
 import 'package:rosenweg_termine/attrappe.dart';
+import 'package:rosenweg_termine/erinnerung.dart';
 import 'package:rosenweg_termine/seiten/haupt.dart';
 
 final ziel = Platform.environment['RW_FOTO'];
@@ -45,6 +46,8 @@ Future<void> foto(WidgetTester t, String datei) async {
 void main() {
   setUpAll(() async {
     Protokoll.nurKonsole = true;
+    Benachrichtigung.attrappe = [];
+    TermineEinstellungen.attrappe = {};
     if (ziel != null) await schriften();
   });
 
@@ -52,9 +55,10 @@ void main() {
     t.view.physicalSize = groesse * 2;
     t.view.devicePixelRatio = 2;
     addTearDown(t.view.reset);
-    final s = RosenwegSitzung(appAngaben, transport: Attrappe());
+    final s = RosenwegSitzung(appAngaben, transport: Attrappe(heute: DateTime(2026, 11, 30, 9), kalender: {3: 'STWEG 3 – Termine'}));
     await s.starten();
     if (phase != null) s.phase = phase;
+    await t.pumpWidget(const SizedBox()); // frisch, ohne Seiten der vorigen Aufnahme
     await t.pumpWidget(RepaintBoundary(child: RosenwegRahmen(sitzung: s, inhalt: (_) => Haupt(sitzung: s))));
     await t.runAsync(() => precacheImage(appAngaben.logo!, t.element(find.byType(MaterialApp))));
     await t.runAsync(() => precacheImage(const AssetImage('assets/logo/rosenweg-termine-klein.png'), t.element(find.byType(MaterialApp))));
@@ -64,6 +68,17 @@ void main() {
   testWidgets('Fotos', (t) async {
     await zeigen(t, const Size(412, 860));
     await foto(t, 'rosenweg-termine-handy.png');
+    await t.tap(find.text('Eigentümerversammlung 2027'));
+    await t.pumpAndSettle();
+    await foto(t, 'rosenweg-termine-termin.png');
+    await zeigen(t, const Size(412, 860));
+    await t.tap(find.text('Erinnerungen').last);
+    await t.pumpAndSettle();
+    await foto(t, 'rosenweg-termine-erinnerungen.png');
+    await zeigen(t, const Size(412, 860));
+    await t.tap(find.text('Neuer Termin'));
+    await t.pumpAndSettle();
+    await foto(t, 'rosenweg-termine-neu.png');
     await zeigen(t, const Size(1200, 800));
     await foto(t, 'rosenweg-termine-station.png');
     await zeigen(t, const Size(412, 860), phase: Phase.abgemeldet);

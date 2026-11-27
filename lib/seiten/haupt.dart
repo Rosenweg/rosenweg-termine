@@ -1,58 +1,131 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:rosenweg_basis/rosenweg_basis.dart';
 
-import 'eintraege.dart';
+import '../daten.dart';
+import '../erinnerung.dart';
+import 'erinnerungen.dart';
+import 'termin.dart';
+import 'termine.dart';
 
-/// Die App nach der Anmeldung. Das Geruest aus rosenweg_basis legt die
-/// Bereiche ([GeruestZiel]) auf dem Handy unten und am Desktop (ab 840 px,
-/// Stationen, Laptops) links als Leiste ab; der Inhalt bleibt am Desktop
-/// mittig begrenzt.
+/// Die App nach der Anmeldung. Zwei Bereiche – auf dem Handy unten, am
+/// Computer links:
 ///
-/// Hier die eigenen Bereiche eintragen. Die Vorlage zeigt drei: eine
-/// Uebersicht, "Einträge" (Bausteine Liste, Formular, Rechte – siehe
-/// eintraege.dart) und "Mein Konto" (GET /api/auth/me, als Beispiel fuer
-/// einen API-Aufruf mit Laden, Fehler und Nochmals).
-class Haupt extends StatelessWidget {
-  const Haupt({super.key, required this.sitzung});
+///  * Termine: Versammlungen, Sitzungen, Wartungen, Reinigungen der eigenen
+///    STWEG(s) samt Kooperation; in den Kalender uebernehmen; Ausschuss und
+///    Verwaltung (Recht „STWEG-Termine“, nur ihre STWEG), Technik und
+///    Praesident tragen ein, aendern, loeschen
+///  * Erinnerungen: wie lange vorher, neue Termine melden, alle auf einmal
+///    in den Kalender
+///
+/// Ohne Push: beim Oeffnen, bei der Rueckkehr und alle 15 Minuten laedt die
+/// App neu und plant die Erinnerungen; Android/iOS zusaetzlich im
+/// Hintergrund (nie auf geteilten Telefonen; nach einem Personenwechsel
+/// baut RosenwegRahmen die App neu auf).
+class Haupt extends StatefulWidget {
+  const Haupt({super.key, required this.sitzung, this.hintergrund, this.einstellungen});
   final RosenwegSitzung sitzung;
+
+  /// Abfrage im Hintergrund beim System anmelden (main.dart); null = nicht.
+  final Future<void> Function()? hintergrund;
+
+  /// Fuer Tests.
+  final TermineEinstellungen? einstellungen;
+
+  @override
+  State<Haupt> createState() => _HauptState();
+}
+
+class _HauptState extends State<Haupt> {
+  late final daten = TermineDaten(widget.sitzung, einstellungen: widget.einstellungen);
+  StreamSubscription<String>? _abo;
+
+  @override
+  void initState() {
+    super.initState();
+    // Laden macht BeimOeffnen (beim Start, bei der Rueckkehr, alle 15 Minuten)
+    WidgetsBinding.instance.addPostFrameCallback((_) => _benachrichtigungen());
+  }
+
+  Future<void> _benachrichtigungen() async {
+    try {
+      await Benachrichtigung.einrichten(widget.sitzung.app);
+      _abo = Benachrichtigung.angetippt.listen(_ziel);
+      final z = await Benachrichtigung.startZiel();
+      if (z != null) _ziel(z);
+      if (widget.sitzung.geteiltesTelefon) return;
+      await widget.hintergrund?.call();
+      final e = await daten.einstellungen();
+      if (e.vorlauf.dauer != null || e.neueMelden) await Benachrichtigung.erlaubnisFragen();
+    } catch (e) {
+      Protokoll.schreiben('Benachrichtigungen', e);
+    }
+  }
+
+  /// Ziel einer Benachrichtigung: `termin/<schluessel>` → den Termin zeigen.
+  void _ziel(String ziel) {
+    if (!ziel.startsWith('termin/') || !mounted) return;
+    final schluessel = ziel.substring('termin/'.length);
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => TerminSeite(daten: daten, schluessel: schluessel)));
+  }
+
+  Future<void> _nachfragen() async {
+    await daten.laden();
+    // Am Computer gibt es keine Abfrage des Systems: neue Termine melden,
+    // solange die App laeuft (Android/iOS macht das der Hintergrund)
+    if (!HintergrundAbfrage.vomSystem && !widget.sitzung.geteiltesTelefon) {
+      await HintergrundAbfrage.einmal(widget.sitzung.app, termineAbfrage, sitzung: widget.sitzung);
+    }
+  }
+
+  @override
+  void dispose() {
+    _abo?.cancel();
+    daten.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final app = sitzung.app;
-    return RosenwegGeruest(
-      titel: Text(app.name),
-      logo: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Image.asset('assets/logo/rosenweg-termine-klein.png', semanticLabel: 'Logo'),
+    final s = widget.sitzung;
+    return BeimOeffnen(
+      pruefen: _nachfragen,
+      alle: const Duration(minutes: 15),
+      child: RosenwegGeruest(
+        titel: Text(s.app.name),
+        logo: Padding(
+          padding: const EdgeInsets.all(10),
+          // Farbe nach der Person (rot, blau fuer Ausschuss/Verwaltung, gruen Technik)
+          child: FarbLogo(sitzung: s, klein: true),
+        ),
+        aktionen: [
+          IconButton(tooltip: 'Neu laden', icon: const Icon(Icons.refresh), onPressed: daten.laden),
+          _Menue(sitzung: s),
+        ],
+        ziele: [
+          GeruestZiel(
+            titel: 'Termine',
+            symbol: Icons.event_outlined,
+            gewaehltSymbol: Icons.event,
+            seite: (_) => TermineSeite(daten: daten),
+          ),
+          GeruestZiel(
+            titel: 'Erinnerungen',
+            symbol: Icons.notifications_outlined,
+            gewaehltSymbol: Icons.notifications,
+            seite: (_) => ErinnerungenSeite(daten: daten),
+          ),
+        ],
       ),
-      aktionen: [_Menue(sitzung: sitzung)],
-      ziele: [
-        GeruestZiel(
-          titel: 'Übersicht',
-          symbol: Icons.home_outlined,
-          gewaehltSymbol: Icons.home,
-          seite: (_) => UebersichtSeite(sitzung: sitzung),
-        ),
-        GeruestZiel(
-          titel: 'Einträge',
-          symbol: Icons.list_alt_outlined,
-          gewaehltSymbol: Icons.list_alt,
-          seite: (_) => EintraegeSeite(sitzung: sitzung),
-        ),
-        GeruestZiel(
-          titel: 'Mein Konto',
-          symbol: Icons.person_outline,
-          gewaehltSymbol: Icons.person,
-          seite: (_) => KontoSeite(api: sitzung.api),
-        ),
-      ],
     );
   }
 }
 
-/// Menue oben rechts: Anmeldung (echter Stand aus der Basis), Ueber, Abmelden.
-/// Auf geteilten Telefonen meldet Rosenweg Geraet ab, dann gibt es den Punkt nicht.
+/// Menue oben rechts: Anmeldung, Ueber, Abmelden (nicht auf geteilten
+/// Telefonen – dort meldet Rosenweg Geraet ab). Abmelden entfernt auch die
+/// geplanten Erinnerungen und meldet die Abfrage im Hintergrund ab.
 class _Menue extends StatelessWidget {
   const _Menue({required this.sitzung});
   final RosenwegSitzung sitzung;
@@ -67,7 +140,10 @@ class _Menue extends StatelessWidget {
             case 'ueber':
               await zeigeUeber(context, sitzung.app);
             case 'abmelden':
-              if (await frage(context, 'Abmelden?', 'Danach musst du dich neu anmelden.', ja: 'Abmelden')) {
+              if (await frage(context, 'Abmelden?', 'Danach musst du dich neu anmelden. Geplante Erinnerungen werden entfernt.',
+                  ja: 'Abmelden')) {
+                await Erinnerungen.alleEntfernen();
+                await HintergrundAbfrage.abmelden(sitzung.app);
                 await sitzung.abmelden();
               }
           }
@@ -78,84 +154,4 @@ class _Menue extends StatelessWidget {
           if (!sitzung.geteiltesTelefon) const PopupMenuItem(value: 'abmelden', child: Text('Abmelden')),
         ],
       );
-}
-
-class UebersichtSeite extends StatelessWidget {
-  const UebersichtSeite({super.key, required this.sitzung});
-  final RosenwegSitzung sitzung;
-
-  @override
-  Widget build(BuildContext context) => ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text('Willkommen${sitzung.name != null ? ', ${sitzung.name}' : ''}',
-              style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 8),
-          Text(sitzung.app.beschreibung),
-          const SizedBox(height: 16),
-          const Hinweis('Hier kommt der Inhalt der App hin. Seiten in lib/seiten/, '
-              'API-Aufrufe über sitzung.api, Vorführdaten in lib/attrappe.dart.'),
-        ],
-      );
-}
-
-/// Beispiel fuer einen API-Aufruf: laden, Fehler mit "Nochmals", Inhalt.
-class KontoSeite extends StatefulWidget {
-  const KontoSeite({super.key, required this.api});
-  final RosenwegApi api;
-
-  @override
-  State<KontoSeite> createState() => _KontoSeiteState();
-}
-
-class _KontoSeiteState extends State<KontoSeite> {
-  Map<String, dynamic>? _ich;
-  Object? _fehler;
-
-  @override
-  void initState() {
-    super.initState();
-    _laden();
-  }
-
-  Future<void> _laden() async {
-    setState(() {
-      _fehler = null;
-      _ich = null;
-    });
-    try {
-      final j = await widget.api.objekt('/api/auth/me');
-      final u = j['user'];
-      if (mounted) setState(() => _ich = u is Map<String, dynamic> ? u : j);
-    } catch (e) {
-      if (mounted) setState(() => _fehler = e);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_fehler != null) return FehlerAnzeige(text: '$_fehler', nochmals: _laden);
-    final ich = _ich;
-    if (ich == null) return const LadeAnzeige();
-    final gruppen = (ich['groups'] as List?)?.join(', ') ?? '';
-    return RefreshIndicator(
-      onRefresh: _laden,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Abschnitt(
-            titel: 'Angemeldet als',
-            symbol: Icons.badge_outlined,
-            kind: Column(
-              children: [
-                ListTile(title: const Text('Name'), subtitle: Text('${ich['name'] ?? '–'}')),
-                ListTile(title: const Text('E-Mail'), subtitle: Text('${ich['email'] ?? '–'}')),
-                if (gruppen.isNotEmpty) ListTile(title: const Text('Gruppen'), subtitle: Text(gruppen)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
