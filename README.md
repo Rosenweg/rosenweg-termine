@@ -22,7 +22,48 @@ Herunterladen: [www.rosenweg4303.ch/apps](https://www.rosenweg4303.ch/apps).
 
 ## Bedienung
 
-Siehe [docs/anleitung.md](docs/anleitung.md).
+Siehe [docs/anleitung.md](docs/anleitung.md). Kurz: Termine der eigenen STWEG(s)
+(Bewohner, Eigentümer, Ausschuss, Verwaltung), Kooperation, Wartungen und
+festgelegte Terminumfragen; „In Kalender übernehmen“ (.ics öffnen/teilen);
+Erinnerungen vor Terminen und Meldung neuer Termine; Eintragen nur mit dem
+Recht „STWEG-Termine“ und nur für die eigene STWEG (Technik, Präsident: alle).
+
+## API (Haupt-API, Rosenweg/Website)
+
+| Aufruf | Wofür |
+|---|---|
+| `GET /api/termine[?stweg=3,8\|alle]` | Termine der gewählten STWEGs (ohne = die eigenen), `stwegs` mit `schreiben` und `kalender` (Nextcloud-Kalender, falls eingerichtet) |
+| `POST /api/stweg/:nr/events` | Termin anlegen (`title`, `start_date`, `end_date`, `all_day`, `location`, `description`, `category`) |
+| `PUT /api/stweg/:nr/events/:id`, `DELETE …/:id` | ändern, löschen |
+
+Schreiben: Technik/Präsident oder Recht `stweg-termine` schreiben und Ausschuss bzw.
+`stwegN-verwaltung` dieser STWEG (`api/lib/termine.js`). Fehler am Feld kommen als
+`{error, feld}` und stehen im Formular am Feld.
+
+## Erinnerungen und Benachrichtigungen
+
+- Erinnerungen plant die App selbst (Basis `Erinnerungen.abgleichen`): bei jedem
+  Laden, im Hintergrund (Android WorkManager ~15 min, iOS BGAppRefreshTask
+  `ch.rosenweg4303.termine.abfrage`) und am Computer alle 15 Minuten, solange die
+  App läuft. Kein Push, kein ntfy.
+- Neue Termine meldet die Abfrage (beim ersten Lauf still).
+- Einstellungen (Vorlauf, neue melden, gewählte STWEGs, ausgeschaltete Termine)
+  liegen in `termine-einstellungen.json` im App-Ordner – eine eigene Datei, weil
+  die Abfrage im Hintergrund in einem eigenen Isolate liest.
+- **Geteilte Telefone:** keine Erinnerungen, keine Abfrage (Basis).
+- Abmelden entfernt die geplanten Erinnerungen.
+
+## Farbe
+
+Nach der freigeschalteten Funktion (Basis `docs/gruppenfarbe.md`): rot alle,
+blau mit Recht `stweg-termine` (Ausschuss, Verwaltung), grün Technik/Präsident.
+Logos in drei Farben aus `assets/logo/erzeugen.sh` (`FARBEN="verwaltung technik"`).
+
+## Basis-Stand
+
+`pubspec.yaml` zeigt bis zum nächsten Tag der Basis auf den Zweig
+`termine-integration` (Rosenweg/rosenweg-basis#33 Kalenderdatei/Erinnerungen auf
+#31, plus #36 Gruppenfarbe). Nach dem Tag auf `ref: v…` umstellen.
 
 ## Entwickeln
 
